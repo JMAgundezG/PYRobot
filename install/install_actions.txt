@@ -1,0 +1,26 @@
+
+sudo cd /usr/local/lib/python3.7/dist-packages
+sudo ln -s /home/pi/developing/PYRobot PYRobot
+export PYROBOTS="/home/pi/developing/robots/"
+
+sudo pip3 install netifaces
+sudo pip3 install paho-mqtt
+sudo pip3 install psutil
+sudo pip3 install mprpc
+sudo pip3 install pyparsing
+sudo pip3 install termcolor
+sudo pip3 install setproctitle
+sudo pip3 install deepdiff
+
+
+# instalar mosquitto en raspberry
+sudo wget http://repo.mosquitto.org/debian/mosquitto-repo.gpg.key
+sudo apt-key add mosquitto-repo.gpg.key
+cd /etc/apt/sources.list.d/
+# jessy sudo wget http://repo.mosquitto.org/debian/mosquitto-jessie.list
+# buster sudo wget http://repo.mosquitto.org/debian/mosquitto-buster.list
+
+sudo -i
+sudo apt install mosquitto
+
+sudo apt install mosquitto-clients
