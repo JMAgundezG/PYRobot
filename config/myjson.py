@@ -4,7 +4,7 @@
 import json
 import re
 import collections
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+from PYRobot.botlogging.coloramadefs import P_Log
 
 class MyJson(object):
     def __init__(self, filename):
@@ -23,7 +23,7 @@ class MyJson(object):
             exit()
         except Exception:
             P_Log("[FR]ERROR:[FS] file not found loading {}".format(filename))
-            return {}
+            exit()
         return data_json
 
     def del_coments(self, data, ch="#"):

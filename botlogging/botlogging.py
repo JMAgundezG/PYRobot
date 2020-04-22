@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 # ____________developed by paco andres____________________
 # ________in collaboration with cristian vazquez _________
-from PYRobot.libs.botlogging.coloramadefs import *
-import PYRobot.libs.utils as utils
+from PYRobot.botlogging.coloramadefs import *
+#import PYRobot.utils.utils as utils
 
 level_DEBUG = 40
 level_INFO = 30

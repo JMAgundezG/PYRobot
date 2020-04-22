@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # ____________developed by paco andres_15/04/2019___________________
 
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+from PYRobot.botlogging.coloramadefs import P_Log
 import time
 from  threading import Thread
-from PYRobot.libs.utils import get_ip_port
+from PYRobot.utils.utils import get_ip_port
 import json
 from gevent.server import DatagramServer
 

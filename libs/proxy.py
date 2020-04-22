@@ -5,7 +5,7 @@
 from mprpc import RPCClient
 import types
 import time
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+from PYRobot.botlogging.coloramadefs import P_Log
 
 
 def_skel_old="""

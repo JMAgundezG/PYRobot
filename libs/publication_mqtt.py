@@ -4,8 +4,8 @@
 import time
 import paho.mqtt.publish as pub
 from  threading import Thread
-from PYRobot.libs.utils import get_ip_port
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+from PYRobot.utils.utils import get_ip_port
+from PYRobot.botlogging.coloramadefs import P_Log
 import json
 from deepdiff import DeepDiff
 
@@ -38,6 +38,7 @@ class Publication(object):
 
     def add_topics(self,*topics):
         for n in topics:
+
             if hasattr(self.obj,n):
                 self.topics.add(n)
                 self.topics_last[n]={}

@@ -8,11 +8,11 @@ import os
 import threading
 from threading import Thread
 from termcolor import colored
-from PYRobot.libs.botlogging import botlogging
+from PYRobot.botlogging import botlogging
 from PYRobot.libs.discovery_comp import discovery
-import PYRobot.libs.utils as utils
+import PYRobot.utils as utils
 from PYRobot.libs.proxy import Proxy
-from PYRobot.libs.utils_mqtt import mqtt_alive
+from PYRobot.utils.utils_mqtt import mqtt_alive
 from PYRobot.libs.publication_mqtt import Publication
 from PYRobot.libs.subscription_mqtt import subscriptions
 from PYRobot.libs.broadcast_emitter import Emitter
@@ -41,6 +41,7 @@ def connect_component(obj):
     sync=obj._etc["public_sync"]
     frec=obj._etc["frec"]
     emit_port=obj._etc["EMIT_port"]
+    #esto se puede sacar fueras
     components_online=obj.dsc_get(obj._etc["robot"]+"/*/Name")
     if name in components_online:
         obj.L_error("{} is on line".format(name))
@@ -50,9 +51,11 @@ def connect_component(obj):
     #loading publications MQTT
     if len(obj._etc["_PUB"])+len(obj._etc["_PUB_EVENTS"])>0:
         #preguntar por broker.
+        obj._etc["_PUB"]=[x.split("/")[2] for x in obj._etc["_PUB"]]
         obj._PROC["PUB"]=Publication(name,uri,obj,sync,frec)
         obj._PROC["PUB"].add_topics(*obj._etc["_PUB"])
         for ent,events in obj._etc["_PUB_EVENTS"].items():
+            _,_,ent=ent.split("/")
             for e in events:
                 obj._PROC["PUB"].add_event(ent,e)
         if sync:
@@ -60,14 +63,16 @@ def connect_component(obj):
 
     #loading publications broadcast emitter
     if len(obj._etc["_EMIT"])+len(obj._etc["_EMIT_EVENTS"])>0:
+        obj._etc["_EMIT"]=[x.split("/")[2] for x in obj._etc["_EMIT"]]
+        #print("EMIT",obj._etc["_EMIT"])
         obj._PROC["EMIT"]=Emitter(name,obj,emit_port,sync,frec)
         obj._PROC["EMIT"].add_topics(*obj._etc["_EMIT"])
         for ent,events in obj._etc["_EMIT_EVENTS"].items():
+            _,_,ent=ent.split("/")
             for e in events:
                 obj._PROC["EMIT"].add_event(ent,e)
         if sync:
             obj._PROC["EMIT"].start()
-
     #conectar subcriptores MQTT
     #preguntar por broker.
     name=obj._etc["name"]
@@ -150,7 +155,9 @@ class Control(botlogging.Logging,discovery):
     def __init__(self):
         botlogging.Logging.__init__(self)
         discovery.__init__(self)
+        
         connect_component(self)
+        #print(self.__dict__)
 
     def start_worker(self, fn, *args):
         """ Start all workers daemon"""

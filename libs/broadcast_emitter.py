@@ -3,7 +3,7 @@
 
 import time
 from  threading import Thread
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+from PYRobot.botlogging.coloramadefs import P_Log
 import json
 from gevent import socket
 from gevent import Timeout

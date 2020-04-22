@@ -6,8 +6,8 @@ from gevent.server import StreamServer
 from PYRobot.libs.interface_control import Control_Interface
 from PYRobot.libs.interfaces import Interface
 from multiprocessing import Process
-import PYRobot.libs.utils as utils
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+import PYRobot.utils.utils as utils
+from PYRobot.botlogging.coloramadefs import P_Log
 import os
 import time
 import sys
@@ -55,7 +55,7 @@ def Start_Server(config):
     except Exception as ex:
         P_Log("[FR][ERROR][FY] Instanced Component {}".format(name))
         P_Log(str(ex))
-        exit()
+ 
     # stablishing interface servers
     try:
         obj._PROC["status"]="INTERFACING"

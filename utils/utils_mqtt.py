@@ -2,7 +2,7 @@
 # ____________developed by paco andres_15/04/2019___________________
 
 import paho.mqtt.client as mqtt
-from PYRobot.libs.botlogging.coloramadefs import P_Log
+from PYRobot.botlogging.coloramadefs import P_Log
 
 def mqtt_alive(uri):
     ip,port=uri.split(":")

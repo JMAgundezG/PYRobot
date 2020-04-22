@@ -8,11 +8,9 @@ import copy
 import importlib
 from PYRobot.libs.server import Run_Server,Start_Server
 from PYRobot.libs.proxy import Proxy
-import PYRobot.libs.config_comp as conf
-import PYRobot.libs.utils as utils
-import PYRobot.libs.utils_mqtt as utils_mqtt
-from PYRobot.libs.botlogging.coloramadefs import P_Log
-import PYRobot.libs.parser as parser
+import PYRobot.utils.utils as utils
+import PYRobot.utils.utils_mqtt as utils_mqtt
+from PYRobot.botlogging.coloramadefs import P_Log
 
 
 robots_dir=utils.get_PYRobots_dir()
@@ -27,20 +25,11 @@ def find_MQTT(mosquito_uri):
         mosquito_uri="0.0.0.0:0"
     return mosquito_uri
 
-
-def Get_General(robot_dir):
-    dir_etc=robots_dir+robot_dir+"/etc/"
-    general=conf.get_conf(dir_etc+"general.json")
-    return general
-
-def Get_Instance(robot_dir,component):
-    dir_etc=robots_dir+robot_dir+"/etc/"
-    instances=conf.get_conf(dir_etc+"instances.json")
-    try:
-        return instances[component]
-    except:
-        P_Log("[FR] [ERROR][FW] {} Not found in {}/instances".format(component,robot_dir))
-        exit()
+def get_ethernets():
+    eths=utils.get_all_ip_eths()
+    sal={e:ip for ip,e in eths}
+    sal["LOCAL"]="127.0.0.1"
+    return sal
 
 class Comp_Starter(object):
     def __init__(self,comp):
@@ -48,7 +37,7 @@ class Comp_Starter(object):
         self.robot_name=comp["_etc"]["name"]
         self.component=comp
         broadcast_port=comp["_etc"]["broadcast_port"]
-        ethernets=conf.get_ethernets()
+        ethernets=get_ethernets()
         if self.component["_etc"]["ethernet"] in ethernets:
             self.component["_etc"]["ip"]=ethernets[self.component["_etc"]["ethernet"]]
         else:
@@ -81,7 +70,6 @@ class Comp_Starter(object):
             self.component["_etc"]["MQTT_uri"]=MQTT_uri
 
     def start(self):
-        
         Start_Server(self.component)
         time.sleep(0.3)
 
