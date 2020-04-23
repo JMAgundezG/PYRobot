@@ -1,7 +1,7 @@
 
-sudo cd /usr/local/lib/python3.7/dist-packages
-sudo ln -s /home/pi/developing/PYRobot PYRobot
-export PYROBOTS="/home/pi/developing/robots/"
+# sudo cd /usr/local/lib/python3.7/dist-packages
+# sudo ln -s /home/pi/developing/PYRobot PYRobot
+# export PYROBOTS="/home/pi/developing/robots/"
 
 sudo pip3 install netifaces
 sudo pip3 install paho-mqtt

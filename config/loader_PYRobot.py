@@ -243,7 +243,7 @@ class Loader_PYRobot(object):
             P_Log(" [FG][OK]")
         else:
             P_Log(" [FR][FAIL]")       
-        for e in show_errors:
+        for e in errors:
             P_Log("[FR][ERROR][FW] {}".format(e))
         C_Err(len(errors)>0,"Semantic in model")
 

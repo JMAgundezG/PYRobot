@@ -9,6 +9,7 @@ import time
 import sys
 import os.path
 import json
+import re
 from PYRobot.config import myjson
 from PYRobot.botlogging.coloramadefs import P_Log,C_Err
 from PYRobot.config.loader_PYRobot import Loader_PYRobot
@@ -30,7 +31,7 @@ def show_PROC(data,all=True):
         if all:
             P_Log("\t[FY] INTERFACES:")
             for t in data["_PROC"]["info"]:
-                P_Log("\t\t {} {}".format(t[1],t[0]))
+                P_Log("\t\t {} {}".format(t[1],t[0].split("/")[-1]))
                 for w in data["_PROC"]["warnings"][t[0]]:
                     P_Log("\t\t\t Warning: {} not implemented".format(w))
             if len(data["_PROC"]["PUB"])>0:
@@ -53,58 +54,71 @@ def show_PROC(data,all=True):
             P_Log("")
      
 
-def Stop_robot(Filename=None,Init={},Model={}):
+def Stop_robot(search):
     dsc=Discovery()
-    robot_name=Init["NAME"]
-    components=[]
-    for k,v in Init.items():
-        if k not in ["MODEL","NAME"]:
-            components.extend([robot_name+"/"+x for x in v])
     controls={}
-    for c in components:
-        controls.update(dsc.Get(c+"/Control"))
+    for s in search:
+        controls.update(dsc.Get(s+"/Control"))
     for uri in controls.values():
         if uri!="0.0.0.0:0":
             proxy=Proxy(uri)
             if proxy():
-                proxy.shutdown()
+                name=proxy.shutdown()
+                P_Log("[FR][STOP][FY] Signal Stop in Component [FW]{}".format(name))
+                
+    if len(controls)==0:
+        P_Log("[FY] Nothing to Stop")
 
-def Kill_robot(Filename=None,Init={},Model={}):
-    robot_name=Init["NAME"]
+def Kill_robot(search):
     pids={}
-    if hostname in Init:
-        for comp in Init[hostname]:
-            comp_pids=utils.findProcessIdByName(robot_name+"/"+comp)
-            pids.update(comp_pids)
-    if "localhost" in Init:
-        for comp in Init["localhost"]:
-            comp_pids=utils.findProcessIdByName(robot_name+"/"+comp)
-            pids.update(comp_pids)
-    #print(pids)
-    for p,n in pids.items():
+    for s in search:
+        robot,comp=s.split("/")
+        comp_pids=utils.findProcessIdByName(robot+"/")
+        pids.update(comp_pids)
+    kill={}
+    for s in search:
+        s=s.replace("*",".+")
+        s=s.replace("?",".+")
+        finded={k:v for k,v in pids.items() if re.search(s,v)}
+        
+        kill.update(finded)
+    kill={k:v for k,v in kill.items() if v.find("python3 ")==-1}
+    for p,n in kill.items():
         try:
             utils.kill_process(p)
             P_Log("[FY]killing [FW]{} PID:{}".format(n,p))
         except:
             pass
+    if len(kill)==0:
+        P_Log("[FY] Nothing to Kill")
 
-def Status_robot(Filename=None,Init={},Model={}):
+def Status_robot(search):
     dsc=Discovery()
-    robot_name=Init["NAME"]
-    components=[]
-    for k,v in Init.items():
-        if k not in ["MODEL","NAME"]:
-            components.extend([robot_name+"/"+x for x in v])
     controls={}
-    for c in components:
-        controls.update(dsc.Get(c+"/Control"))
+    for s in search:
+        controls.update(dsc.Get(s+"/Control"))
     for uri in controls.values():
         if uri!="0.0.0.0:0":
             proxy=Proxy(uri)
             if proxy():
                 info_comp=proxy.Get_INFO()
                 show_PROC(info_comp)
-
+    if len(controls)==0:
+        P_Log("[FY] Nothing to show")
+        
+def Find_robot(search):
+    dsc=Discovery()
+    names=[]
+    for s in search:
+        name=dsc.Get(s+"/Name")
+        names.extend(name)
+    if len(names)==0:
+        P_Log("[FY] Nothing to show")
+        return ""
+    P_Log("[FY] Find Components:")
+    for n in names:
+        P_Log("\tComponent: [FG]{}".format(n))
+    
 def Start_robot(Filename=None,Init={},Model={}):
     loader=Loader_PYRobot(Filename,Init,Model)
     robot_name=Init["NAME"]
@@ -157,10 +171,21 @@ def get_robot_init(robot):
             del(init["localhost"])
             init[host]=[]
             init[host].extend(comp.split(","))
-            
         return init
+    
+def get_comp(cad):
+    if len(cad.split("/"))==1:
+        components=[cad+"/*"]
+        return components
+    if len(cad.split("/"))==2:
+        robot,comp=cad.split("/")
+        components=[robot+"/"+c for c in comp.split(",")]
+        return components
         
-COMMAND={"start":Start_robot,"stop":Stop_robot,"kill":Kill_robot,"status":Status_robot}    
+    else:
+        return []
+        
+COMMAND={"start":Start_robot,"stop":Stop_robot,"kill":Kill_robot,"status":Status_robot,"find":Find_robot}    
 
 if __name__ == '__main__':       
    pass

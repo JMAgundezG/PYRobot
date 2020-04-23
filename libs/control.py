@@ -274,6 +274,7 @@ class Control(botlogging.Logging,discovery):
 
     def shutdown(self):
         self._PROC["SERVER"].stop()
+        return self._etc["name"]
 
     def Set_Logging(self,level=20):
         
