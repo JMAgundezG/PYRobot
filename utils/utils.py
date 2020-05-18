@@ -69,6 +69,23 @@ def get_all_ip_eths():
     #print(address)
     return address
 
+def get_ethernets():
+    eths=get_all_ip_eths()
+    sal={e:ip for ip,e in eths}
+    sal["lo"]="127.0.0.1"
+    return sal
+
+def set_eth_ip(eth):
+    ethernets=get_ethernets()
+    ip="0.0.0.0"
+    if eth in ethernets:
+        ip=ethernets[eth]
+    else:
+        eth=list(ethernets)[0]
+        ip=list(ethernets.values())[0]
+    return eth,ip
+
+
 def get_all_ip_address(broadcast=False):
     """Return the list of IPs of all network interfaces.
 
@@ -131,43 +148,24 @@ def get_interface():
     return interface
 
 
-def port_in_use(ip, port):
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.2)
-        try:
-            s.connect((ip, int(port)))
-            s.shutdown(socket.SHUT_RDWR)
-            return True
-        except:
-            return False
-        finally:
-            s.close()
-
-def _port_in_use(ip,port):
-    try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((ip, port))
-        print(port,ip)
-        return False
-    except socket.error as e:
-        if e.errno == errno.EADDRINUSE:
-            print("in use",port)
-            return True
-        else:
-            # something else raised the socket.error exception
-            print(e)
-            return True
-    finally:
-        s.close()
-
-def get_free_port(port, ip="127.0.0.1",interval=1):
-    """Return free port from a specific IP."""
-    _port = port
-    while  port_in_use(ip,_port):
-        
-        _port += interval
-    return _port
-
+def get_free_ports(ip, port,num=1):
+    #free_ports=[[port,socket.socket(socket.AF_INET, socket.SOCK_STREAM)] for i in range(num)]
+    free_ports=[]
+    for n in range(num):
+        result=False
+        while not result:
+            try:
+                sock=socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.bind((ip, port))
+                free_ports.append([port,sock])
+                #print("free",port,ip)
+                port=port+1
+                result=True
+            except socket.error as e:
+                #print(e)
+                #print("ocupado",port,e)
+                port=port+1
+    return free_ports        
 
 
 def format_exception(e):
@@ -250,3 +248,40 @@ def get_PYRobots_dir():
         sys.exit()
     else:
         return os.environ["PYROBOTS"]
+    
+def show_PROC(data):
+    if data["_PROC"]["status"]=="OK":
+        P_Log("[FG] [OK][FY] Starded Component {}".format(data["_etc"]["name"]))
+    else:
+        P_Log("[FR] [FAIL][FY] Starded Component {}".format(data["_etc"]["name"]))
+    P_Log("\t Network:{} Host: {} Pid:{}".
+            format(data["_etc"]["ethernet"],data["_etc"]["host"],data["_PROC"]["PID"]))
+    if all:
+        P_Log("\t[FY] Broker:[FW] {}".format(data["_PROC"] ["MQTT_uri"]))
+        for t in data["_PROC"]["info"]:
+            P_Log("\t {} {}".format(t[1],t[0]))
+            for w in data["_PROC"]["warnings"][t[0]]:
+                P_Log("\t\t Warning: {} not implemented".format(w))
+        topics=data["_PROC"]["PUB"]
+        mq={top:tip for top,tip in topics.items() if tip=="MQ"}
+        br={top:tip for top,tip in topics.items() if tip=="BR"}
+        mc={top:tip for top,tip in topics.items() if tip=="MC"}
+        if len(topics)>0:
+            P_Log("\t Publicating:")
+            if len(mq)>0:
+                P_Log("\t\t Broker MQTT: {}".format(",".join(mq)))
+            if len(br)>0:
+                P_Log("\t\t IP Broadcast: {}".format(",".join(br)))
+            if len(mc)>0:
+                P_Log("\t\t IP Multicast: {}".format(",".join(mc)))
+        suscribers=data["_PROC"]["SUS"]
+        if len(suscribers)>0:
+            P_Log("\t Suscribing:")
+            for s,v in suscribers.items():
+                P_Log("\t\t{}={}".format(v,s))
+        proxys=data["_PROC"]["PROXYS"]
+        if len(proxys)>0:
+            P_Log("\t Proxys connected:")
+            for at,pro in proxys.items():
+                P_Log("\t\t{}={}".format(at,pro))
+    P_Log("")

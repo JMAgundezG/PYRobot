@@ -5,16 +5,20 @@ from pyparsing import *
 import copy
 from inspect import isfunction
 
+comunications_model=["BR","MQ","MC"]
+
 def set_COMP(s,l,t):
     if t[-2]!="::":
         t.append("::")
         t.append(t[-2])
     return "".join(t)
 
-def set_PROXY(s,l,t):
-    #print("PROXY",t,len(t))   
+def set_PUB(s,l,t):
+    #print("PUB",s,t,len(t))   
+    if len(t)==1:
+        return "MQ::"+t[0]
     if len(t)==3:
-        return "{R}/"+s
+        return "".join(t)
     
 def set_TOPIC(s,l,t):
     #print("TOPIC",t,len(t))   
@@ -47,13 +51,19 @@ integer = Word( nums )
 IP = Combine(integer + "." + integer + "." + integer + "." + integer)
 IP.setParseAction(lambda s,l,t:s)
 
+URI = Combine(integer + "." + integer + "." + integer + "." + integer+":"+integer)
+URI.setParseAction(lambda s,l,t:s)
+
 COMP=(Token+'/')*(1,5)+Token+("::"+Token)*(0,1)
 COMP.setParseAction(set_COMP)
+COMUNIC=Literal("MQ")|Literal("BR")|Literal("MC")
 
-PROXY=(Token+"/")*(1,2)+Token
-PROXY.setParseAction(set_PROXY)
+PUB=(COMUNIC+"::"+Token)
+PUB.setParseAction(set_PUB)
+
 CONNECTOR=Token+'='+(Token+"/")*(1,2)+Token
 CONNECTOR.setParseAction(set_CONNECTOR)
+
 
 
 Sintactic_Skel={
@@ -72,27 +82,23 @@ Sintactic_Skel={
     "cls":None,
     "port":lambda t: (False,t) if type(t)==int else (True,t),
     "MQTT_port":lambda t: (False,t) if type(t)==int else (True,t),
-    "MQTT_uri":None,
-    "EMIT_port":lambda t: (False,t) if type(t)==int else (True,t),
-    "broadcast_port":lambda t: (False,t) if type(t)==int else (True,t),
+    "MQTT_uri":URI,
+    "BROADCAST_port":lambda t: (False,t) if type(t)==int else (True,t),
+    "MULTICAST_port":lambda t: (False,t) if type(t)==int else (True,t),
+    "DISCOVERY_port":lambda t: (False,t) if type(t)==int else (True,t),
     "def_worker":lambda t: (False,t) if type(t)==bool else (True,t),
     "frec":lambda t: (False,t) if type(t)==float else (True,t),
-    "public_sync":lambda t: (False,t) if type(t)==bool else (True,t),
     "running":None,
     "logging_level":lambda t: (False,t) if type(t)==int else (True,t),
     "_COMP":COMP,
     "_INTERFACES":Token,
-    "_REQ":CONNECTOR,
-    "_PUB":TOPIC,
-    "_SUB":CONNECTOR,
-    "_PUB_EVENTS":TOPIC,
-    "_SUB_EVENTS":CONNECTOR,
-    "_EMIT":TOPIC,
-    "_RECEIVE":CONNECTOR,
-    "_EMIT_EVENTS":TOPIC,
-    "_RECEIVE_EVENTS":CONNECTOR,
+    "_CLS_INTERFACES":None,
+    "_PROXYS":CONNECTOR,
+    "_TOPICS":PUB,
+    "_EVENTS":PUB,
     "_EVENTS_":None,
-    "_REQUIRES_":Token
+    "_SUS":CONNECTOR,
+    "_REQUEST_":None
     }
 }
 

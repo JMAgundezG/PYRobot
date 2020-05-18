@@ -14,6 +14,7 @@ from PYRobot.config import myjson
 from PYRobot.botlogging.coloramadefs import P_Log,C_Err
 from PYRobot.config.loader_PYRobot import Loader_PYRobot
 from PYRobot.utils.utils_discovery import Discovery
+from PYRobot.utils.utils import show_PROC
 from PYRobot.libs.proxy import Proxy
 from PYRobot.utils.utils import get_PYRobots_dir,get_host_name
 
@@ -21,39 +22,19 @@ from PYRobot.utils.utils import get_PYRobots_dir,get_host_name
 robots_dir=get_PYRobots_dir()
 hostname=get_host_name()
 
-Init_Skel={"NAME":"","MODEL":"","localhost":[]}               
+Init_Skel={"NAME":"","MODEL":"","localhost":[]}    
 
-def show_PROC(data,all=True):
-    
-        P_Log("[FY]COMPONENT:[FW]{} [FY]STATUS:[FG]{}".format(data["_etc"]["name"],data["_PROC"]["status"]))
-        P_Log("\t Network:{} Host: {} Pid:{}".
-                format(data["_etc"]["ethernet"],data["_etc"]["host"],data["_PROC"]["PID"]))
-        if all:
-            P_Log("\t[FY] INTERFACES:")
-            for t in data["_PROC"]["info"]:
-                P_Log("\t\t {} {}".format(t[1],t[0].split("/")[-1]))
-                for w in data["_PROC"]["warnings"][t[0]]:
-                    P_Log("\t\t\t Warning: {} not implemented".format(w))
-            if len(data["_PROC"]["PUB"])>0:
-                P_Log("\t Publicating Topics: {}".format(",".join(data["_PROC"]["PUB"])))
-            if len(data["_PROC"]["PUB_EVENT"])>0:
-                P_Log("\t Publicating Events channels: {}".format(",".join(data["_PROC"]["PUB_EVENT"])))
-            if len(data["_PROC"]["EMIT"])>0:
-                P_Log("\t Emitting Topics: {}".format(",".join(data["_PROC"]["EMIT"])))
-            if len(data["_PROC"]["EMIT_EVENT"])>0:
-                P_Log("\t Emitting Events channels: {}".format(",".join(data["_PROC"]["EMIT_EVENT"])))
-            if len(data["_PROC"]["SUB"])>0:
-                P_Log("\t subscriptions Topics: {}".format(",".join(data["_PROC"]["SUB"])))
-            if len(data["_PROC"]["SUB_EVENT"])>0:
-                P_Log("\t subscribe Events channels: {}".format(",".join(data["_PROC"]["SUB_EVENT"])))
-            if len(data["_PROC"]["RECEIVE"])>0:
-                P_Log("\t Receive Topics: {}".format(",".join(data["_PROC"]["RECEIVE"])))
-            if len(data["_PROC"]["RECEIVE_EVENT"])>0:
-                P_Log("\t Receive Events channels: {}".format(",".join(data["_PROC"]["RECEIVE_EVENT"])))
-            P_Log("\t Requires: {}".format(data["_PROC"]["requires"]))
-            P_Log("")
+
+def get_node_interfaces(host):
+    dst=Discovery()
+    interfaces={}
+    dst=Discovery()
+    key="PYRobot/Node_"+host+"/InterfacesOK"
+    response=dst.Get(key)
+    interfaces.update({k.split("/")[1].split("_")[1]:v for k,v in response.items() if k.find("/Node_Interface")!=-1})
+    return interfaces
+               
      
-
 def Stop_robot(search):
     dsc=Discovery()
     controls={}
@@ -106,45 +87,68 @@ def Status_robot(search):
     if len(controls)==0:
         P_Log("[FY] Nothing to show")
         
-def Find_robot(search):
+def Find_robot(search,show=True):
     dsc=Discovery()
     names=[]
+    if type(search)==str:
+        search=[search] 
     for s in search:
         name=dsc.Get(s+"/Name")
         names.extend(name)
     if len(names)==0:
-        P_Log("[FY] Nothing to show")
-        return ""
-    P_Log("[FY] Find Components:")
-    for n in names:
-        P_Log("\tComponent: [FG]{}".format(n))
+        if show:
+            P_Log("[FY] Nothing to show")
+        return []
+    if show:
+        P_Log("[FY] Find Components:")
+        for n in names:
+            P_Log("\tComponent: [FG]{}".format(n))
+    return names
+        
     
 def Start_robot(Filename=None,Init={},Model={}):
     loader=Loader_PYRobot(Filename,Init,Model)
     robot_name=Init["NAME"]
+    onlinecomps=Find_robot("{}/*".format(robot_name),show=False)
     loader.Check()
     components=loader.Get_Skel()
     dsc=Discovery()
+  
     for c,comp in components.items():
         name=comp["_etc"]["name"]
-        comp=json.dumps(comp)
-        utils.run_component("_comp",comp,run="start")
-        i=10
-        get=""
-        while i>0 and get!=name:
-            get=dsc.Get(name+"/Running")
-            get=get[0] if len(get)>0 else ""
-            i=i-1
-            time.sleep(0.1)
+        host=comp["_etc"]["host"]
+        if name not in onlinecomps:
+            comp=json.dumps(comp)
+            if host=="localhost":
+                utils.run_component("_comp",comp,run="start")
+            else:
+                uris=get_node_interfaces(host)
+                if host in uris:
+                    proxy=Proxy(uris[host])
+                    if proxy():
+                        proxy.Run_comp(comp)
+                P_Log("[FY]component:[FW]{} [FY]starting in host:[FW]{}".format(name,host))
+        else:
+            P_Log("[FY]component:[FW]{} [FY] is online on [FW]{}".format(name,host))
 
-    controls=dsc.Get(robot_name+"/*/Control")
-    #print(controls)
-    for uri in controls.values():
+    trys=6
+    while trys>0:
+        controls=dsc.Get(robot_name+"/*/ControlOK")
+        if len(controls)==len(components):
+            trys=0
+        else:
+            trys=trys-1
+            time.sleep(0.09)
+    if len(controls)!=len(components):
+        P_Log("[FY][Warning][FW] some components are not running") 
+    P_Log("[FY] Waiting for connect loggins...")
+    controls=dsc.Get(robot_name+"/*/ControlOK")
+    for uri in controls.values():      
         if uri!="0.0.0.0:0":
                 proxy=Proxy(uri)
                 if proxy():
-                    proxy.Set_Logging(0)
-                    
+                    proxy.Set_Logging(0)            
+            
 
 
 def get_robot_init(robot):

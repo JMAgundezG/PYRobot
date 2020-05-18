@@ -9,6 +9,7 @@ ethernet = utils.get_interface()
 ip = utils.get_ip_address(ethernet)
 host = utils.get_host_name()
 
+comunications_model=["BR","MQ","MC"]
 
 Component_Skel={
 "_etc":{
@@ -25,39 +26,30 @@ Component_Skel={
     "port":4040,
     "MQTT_port":1883,
     "MQTT_uri":None,
-    "EMIT_port":10000,
-    "broadcast_port":9999,
+    "BROADCAST_port":9999,
+    "MULTICAST_port":10000,
+    "DISCOVERY_port":9000,
     "def_worker":True,
     "frec":0.2,
-    "public_sync":False,
-    "running":"stop",
     "logging_level":50,
     "_COMP":None,
     "_INTERFACES":[],
-    "_REQ":[],
-    "_PUB":[],
-    "_SUB":[],
-    "_PUB_EVENTS":[],
-    "_SUB_EVENTS":[],
-    "_EMIT":[],
-    "_RECEIVE":[],
-    "_EMIT_EVENTS":[],
-    "_RECEIVE_EVENTS":[],
+    "_CLS_INTERFACES":[],
+    "_PROXYS":[],
+    "_SUS":[],
+    "_EVENTS":[],
+    "_TOPICS":[],
     "_EVENTS_":{},
-    "_REQUIRES_":[]
+    "_REQUEST_":[]
     },
 "_PROC":{
     "status":None,
-    "requires":"WAITTING",
-    "pid":None,
     "info":None,
     "warnings":[],
     "workers":[],
     "PUB":None,
-    "SUB":None,
-    "EMIT":None,
-    "RECEIVE":None,
-    "CONTROL":None
+    "SUS":None,
+    "AVAILABLE_TOPICS":[]
     },
 "DOCS":{}
 }

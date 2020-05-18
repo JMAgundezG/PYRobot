@@ -7,6 +7,7 @@ import json
 import re
 import inspect 
 import importlib
+import time
 
 buff_size=4096
 
@@ -22,16 +23,53 @@ def _Get_Name(instances):
     
 def _Get_Running(instances):
     return instances
+
+def _Get_HI(instances):
+    interfaces={}
+    for d in instances:
+        interfaces.update(d)
+    #print("get ",interfaces)
+    return interfaces
     
 def _Get_Interfaces(instances):
-    instances=[json.loads(x) for x in instances]
-    interfaces={x[0]:x[1] for x in instances if "Control_Interface" not in x[0]}
+    interfaces={}
+    for d in instances:
+        interfaces.update(d)
+    #print("get ",interfaces)
+    return interfaces
+
+def _Get_InterfacesOK(instances):
+    interfaces={}
+    for d in instances:
+        interfaces.update(d)
     #print("get ",interfaces)
     return interfaces
     
 def _Get_Control(instances):
-    instances=[json.loads(x) for x in instances]
-    interfaces={x[0]:x[1] for x in instances if "Control_Interface" in x[0]}
+    interfaces={}
+    for d in instances:
+        interfaces.update(d)
+    #print("get ",interfaces)
+    return interfaces
+
+def _Get_ControlOK(instances):
+        interfaces={}
+        for d in instances:
+            interfaces.update(d)
+        #print("get ",interfaces)
+        return interfaces
+
+def _Get_Topics(instances):
+    interfaces={}
+    for d in instances:
+        interfaces.update(d)
+    #print("get ",interfaces)
+    return interfaces
+
+def _Get_Events(instances):
+    interfaces={}
+    for d in instances:
+        interfaces.update(d)
     #print("get ",interfaces)
     return interfaces
 
@@ -40,48 +78,43 @@ def _Get_nothing(instances):
 
 
 class Discovery(object):
-    def __init__(self,broadcast_port=9999,act=False,name="PYROBOT"):
-        self.broadcast_port=broadcast_port
+    def __init__(self,discovery_port=9000,act=False,name="PYROBOT",delay=0.3):
+        self.discovery_port=discovery_port
         self.name=name
+        self.delay=delay
         self.active_server=act
         self.client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        self.client.settimeout(0.2)
-        self.server= DatagramServer(('', self.broadcast_port), handle=self._receive)
+        self.client.settimeout(0.1)
+        #print("utils discovery port",self.discovery_port)
+        self.server= DatagramServer(('', self.discovery_port), handle=self._receive)
         if self.active_server:
             self.server.start()
 
     def Get(self,key):
+        #print("key ",key)
         robot,comp,query=key.split("/")
         key="{}::{}".format(self.name,key)
-        self.client.sendto(key.encode(), ("255.255.255.255", self.broadcast_port))
-        #print("getting",key)
+        self.client.sendto(key.encode(), ("255.255.255.255", self.discovery_port))
+        time.sleep(self.delay)
         instances=[]
         try:
            while True:
                data,address = self.client.recvfrom(buff_size)
-               data=data.decode()
-               #print("raw data",data)
-               instances.append(data)
+               #print("GEE",data)
+               data,rec_query,sender=json.loads(data.decode())
+               #print(data,rec_query,sender)
+               #print(query)
+               if rec_query==query:
+                   instances.append(data)
         except:
             pass
-        return getters.get("_Get_"+query,_Get_nothing(instances))(instances)
+        return getters["_Get_"+query](instances)
             
 
     def _receive(self, key, address):
-        # data sender::robot/component/required
-        key=key.decode()
-        sender,query=key.split("::")
-        if not self.active_server:
-            return False
-        robot,comp,query=query.split("/")
-        name=robot+"/"+comp
-        name=name.replace("*",".+")
-        name=name.replace("?",".+")
-        if re.match(name,self.name):
-            pass
-            #send=senders.get("_Send_"+query,_Send_nothing(instances))(instances)
+        pass
     
         
     

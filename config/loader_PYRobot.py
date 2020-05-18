@@ -4,13 +4,16 @@ import sys
 import os
 import time
 from PYRobot.config import myjson
-from PYRobot.utils.utils import get_PYRobots_dir,get_host_name
+from PYRobot.utils.utils import get_PYRobots_dir,get_host_name,get_ethernets,mqtt_alive
 import PYRobot.config.basic_skel as skel
 from PYRobot.botlogging.coloramadefs import P_Log,C_Err
 from PYRobot.config.sintactic_skel import Sintactic,GET_COMP
 from PYRobot.config.semantic_skel import Semantic
 from PYRobot.config.cmake_skel import CMake,all_interfaces
+from PYRobot.utils.utils_discovery import Discovery
+from PYRobot.libs.proxy import Proxy
 import copy
+from pprint import pprint
 
 
 
@@ -36,11 +39,38 @@ dir_comp="components/"
 dir_models=robots_dir+"models/"
 hostname=get_host_name()
 
-def get_uri_node(host):
-    if host=="localhost":
-        return host
-    else:
-        return "0.0.0.0:0"
+def get_all_nodes_interfaces():
+    dst=Discovery()
+    interfaces={"localhost":hostname}
+    dst=Discovery()
+    key="PYRobot/Node_*"+"/InterfacesOK"
+    response=dst.Get(key)
+    interfaces.update({k.split("/")[1].split("_")[1]:v for k,v in response.items() if k.find("/Node_Interface")!=-1})
+    return interfaces
+
+def get_all_hosts(eth=None):
+    dst=Discovery()
+    key="iamrobot/*/HI"
+    response=dst.Get(key)
+    host_name=get_host_name()
+    if host_name not in response:
+        eths=get_ethernets()
+        if eth in eths:
+            ips=[eths[eth]]
+        else:
+            ips=[ip for dis,ip in eths.items()]
+        response[host_name]=ips
+    response["localhost"]=response[host_name]
+    return response
+
+def get_MQTT_uri(host,port,eth):
+    hosts=get_all_hosts(eth)
+    uri="0.0.0.0:{}".format(port)
+    if host in hosts:
+        uri="{}:{}".format(hosts[host][0],port)
+        if not mqtt_alive(uri):
+            return "0.0.0.0:{}".format(port)
+    return uri
 
 class Loader_PYRobot(object):
     def __init__(self,init_file=None,Init={},Model={}):
@@ -124,6 +154,7 @@ class Loader_PYRobot(object):
                     errors.append(" {} no label _COMP".format(comp))
                 self.COMPONENTS[comp]["_etc"]["_COMP"]=val
                 self.COMPONENTS[comp]["_etc"]["name"]=self.Instances[comp]["name"]
+                self.COMPONENTS[comp]["_etc"]["host"]=host
         if len(errors)!=0:
             P_Log(" [FR][FAIL]")
             for e in errors:
@@ -132,96 +163,82 @@ class Loader_PYRobot(object):
         else:
             P_Log(" [FG][OK]")
         
-        # preparamos la estructura final de componentes
-
-        # revisamos si estan los host preparados
-        self.uri_nodes={k:get_uri_node(k) for k in self.inits}
-        P_Log("[FY]Checking Distributed Hosts ",ln=False)
-        errors=[host for host,uri in self.uri_nodes.items() if uri=="0.0.0.0:0"]
+        #chequeamos el broker mqtt
+        P_Log("[FY]Checking Broker ",ln=False)
+        errors=[]
+        for name,comp in self.Instances.items():
+            mqtt_uri=comp.get("MQTT_uri","localhost")
+            port=comp.get("MQTT_port",1883)
+            eth=comp.get("ethernet","eth")
+            eths=get_ethernets()
+            if eth in eths:
+                eth=eths[eth]
+            self.Instances[name]["ethernet"]=eth    
+            self.Instances[name]["MQTT_uri"]=get_MQTT_uri(mqtt_uri,port,eth)
+            if self.Instances[name]["MQTT_uri"]=="0.0.0.0:{}".format(port):
+                errors.append(errors.append(" {} no MQTT_uri on line".format(name)))
         if len(errors)!=0:
-            P_Log(" [FR][FAIL]")
+            P_Log(" [FY][Warning]")
             for e in errors:
-                P_Log("[FR][ERROR][FW] host {} not is online".format(e))
-            C_Err(len(errors)>0," in Distibuted Host")       
+                P_Log("\t[FY][Warning][FW] {}".format(e))      
         else:
             P_Log(" [FG][OK]")
-            
-        #pedimos configuracion a los nodos
-        P_Log("[FY]Checking Components code",ln=False)
-        loader_comps=[config["host"]+"--"+config["_COMP"] for comp,config in self.Instances.items()]
-        loader_comps=list(set(loader_comps))
+         
+ 
+        # preparamos la estructura final de componentes
+        # revisamos si estan los host preparados
+        available_host=get_all_hosts()
+        P_Log("[FY]Checking Distributed Hosts ",ln=False)
+        errors=[k for k in self.inits if k not in available_host]
+        if len(errors)!=0:
+            P_Log(" [FY][Warning]")
+            for e in errors:
+                P_Log("\t[FY][Warning][FW] host {} not is online".format(e))  
+        else:
+            P_Log(" [FG][OK]")
+        self.Instances={name:comp for name,comp in self.Instances.items() if self.Instances[name]["host"] in ["localhost",get_host_name()]}
 
+        #pedimos configuracion local de los componentes locales
         errors=[]
-        config_comps={}  
-        for c in loader_comps:
-            host,comp=c.split("--")
-            comp,cls=comp.split("::")
-            if host=="localhost":
-                g=CMake(comp)
-                errors.extend(g.get_errors(cls))
-                config_comps[comp+"::"+cls]=g.get_status(cls)
-            else:
-                #TODO perdir a los nodos
-                pass           
+        all_i=all_interfaces()
+        P_Log("[FY]Checking Components code",ln=False)
+        for comp,config in self.Instances.items():
+            c,cls=config["_COMP"].split("::")  
+            g=CMake(c)
+            status=g.get_status(cls)
+            errors.extend([" in _COMP {} {}".format(c,x) for x in g.get_errors(cls)])
+            errors.extend([" need package _COMP {} {}".format(c,x) for x in status["need_packages"]])
+            errors.extend([" Run error _COMP {} {}".format(c,x) for x in status["run_errors"]])
+            if len(errors)==0:
+                self.Instances[comp].update(status["config"])
+            if "_INTERFACES" in config:
+                errs=all_i.get_error_interfaces(config["_INTERFACES"])
+                errors.extend([" _Interfaces _COMP {} {}".format(c,x) for x in errs])
+                if len(errs)==0:
+                    self.Instances[comp]["_CLS_INTERFACES"]=all_i.get_interfaces(config["_INTERFACES"])
+        
         if len(errors)!=0:
             P_Log(" [FR][FAIL]")
             for e in errors:
                 P_Log("[FR][ERROR][FW] {}".format(e))
             C_Err(len(errors)>0," in components code")
         else:
-            P_Log(" [FG][OK]")
-        
-        #actualizamos COMPONENTS con la configuracion del componente
-        for name,comp in self.COMPONENTS.items():
-            namecomp=comp["_etc"]["_COMP"]
-            if namecomp in config_comps:
-                self.COMPONENTS[name]=skel.update_skel_dict(self.COMPONENTS[name],config_comps[namecomp]["config"])
-                
-           
-        #chequeamos las interfaces disponibles hay que hacerlo por nodes
-        #TODO distribuirlo a nodos
-        
-        P_Log("[FY]Checking Interfaces ",ln=False)   
-        loader_interfaces={host:[] for host in self.inits}
-        for c,conf in self.Instances.items():
-            if "_INTERFACES" not in conf:
-                self.Instances[c]["_INTERFACES"]=[]
-            if type(conf["_INTERFACES"])!=list:
-                self.Instances[c]["_INTERFACES"]=[conf["_INTERFACES"]]
-            loader_interfaces[conf["host"]].extend(self.Instances[c]["_INTERFACES"])
-        errors=[]
-        self.INTERFACES={}    
-        for host,interfaces in loader_interfaces.items():
-            if host=="localhost":
-                all_i=all_interfaces()
-                self.INTERFACES[host]=all_i.get_interfaces(interfaces)
-                self.INTERFACES[host]=list(set(self.INTERFACES[host]))
-                errors.extend(all_i.get_error_interfaces(interfaces))
-            else:
-                pass
-                #TODO perdir a nodo  
-        if len(errors)!=0:
-            P_Log(" [FR][FAIL]")
-            for e in errors:
-                P_Log("[FR][ERROR][FW] {}".format(e))
-            C_Err(len(errors)>0," in Interfaces")       
-        else:
-            P_Log(" [FG][OK]")
-      
-        # hacemos chequeo sintactico de las instancias      
+            P_Log(" [FG][OK]") 
+            
         #actualizamos COMPONENTS con la configuracion de instances
-        for name,comp in self.COMPONENTS.items():
-            if name in self.Instances:
-                self.COMPONENTS[name]=skel.update_skel_dict(self.COMPONENTS[name],self.Instances[name])      
-
+        for name,comp in self.Instances.items():
+            if name in self.COMPONENTS:
+                self.COMPONENTS[name]=skel.update_skel_dict(self.COMPONENTS[name],self.Instances[name])
+        self.COMPONENTS={k:v for k,v in self.COMPONENTS.items() if k in self.Instances}
+        
+        # hacemos chequeo sintactico de las instancias  
         errors={}        
         P_Log("[FY]Checking Sintactic Model",ln=False)   
-        
         for name,comp in self.COMPONENTS.items():
             check=Sintactic(comp)
             err=check.get_errors()
             if len(err)>0:
-                errors[k]=check.get_errors()
+                errors[name]=check.get_errors()
             self.COMPONENTS[name]=check.get_skel()      
         if len(errors)==0:
             P_Log(" [FG][OK]")
@@ -233,10 +250,11 @@ class Loader_PYRobot(object):
             P_Log("[FR][ERROR][FW] {} --> {}".format(k,e))
         C_Err(len(show_errors)>0,"Sintactics errors in model")
         
+
         #hacemos el chequeo semantico de las instancias.
         errors={}        
         P_Log("[FY]Checking Semantic Model",ln=False)   
-        check=Semantic(self.COMPONENTS,self.INTERFACES)
+        check=Semantic(self.COMPONENTS)
         errors=check.get_errors()
         self.COMPONENTS=check.get_skel() 
         if len(errors)==0:
@@ -246,19 +264,17 @@ class Loader_PYRobot(object):
         for e in errors:
             P_Log("[FR][ERROR][FW] {}".format(e))
         C_Err(len(errors)>0,"Semantic in model")
+        
+        if len(check.get_warnings())>0:
+            for e in check.get_warnings():
+                P_Log("\t[FY][WARNING][FW] {}".format(e))
 
-
+        #limpiamos COMPONENTS
+        #pprint(self.COMPONENTS)
    
 if __name__ == '__main__':
-    if len(sys.argv)< 2:
-        P_Log("please type create_model model")
-        exit()
-    if len(sys.argv)==2:
-        import pprint
-        #a=Loader_PYRobot(Init={})
-        a=Loader_PYRobot(sys.argv[1])
-        a.Check()
-        comps=a.Get_Skel()
+    pass
+
         
         
         

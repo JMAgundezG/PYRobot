@@ -128,12 +128,12 @@ class all_interfaces(object):
         return [x for x,e in self.interfaces.items() if len(e)==0]
     
     def get_interfaces(self,l):
-        if type(l)!=list:
+        if type(l)not in [list,tuple]:
             l=[l]
-        return [x for i in l for x in self.get_all_interfaces() if "::"+i in x]
+        return [x for i in l for x in self.get_all_interfaces() if x.split("::")[1]==i]
 
     def get_error_interfaces(self,l):
-        if type(l)!=list:
+        if type(l) not in [list,tuple]:
             l=[l]
         cls=[k.split("::")[1] for k in self.interfaces]
         not_found=["Interface {} not found".format(x) for x in l if x not in cls]

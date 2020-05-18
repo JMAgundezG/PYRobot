@@ -6,7 +6,7 @@ import os
 import time
 import copy
 import importlib
-from PYRobot.libs.server import Run_Server,Start_Server
+from PYRobot.libs.server import Start_Server
 from PYRobot.libs.proxy import Proxy
 import PYRobot.utils.utils as utils
 import PYRobot.utils.utils_mqtt as utils_mqtt
@@ -25,26 +25,17 @@ def find_MQTT(mosquito_uri):
         mosquito_uri="0.0.0.0:0"
     return mosquito_uri
 
-def get_ethernets():
-    eths=utils.get_all_ip_eths()
-    sal={e:ip for ip,e in eths}
-    sal["LOCAL"]="127.0.0.1"
-    return sal
-
 class Comp_Starter(object):
     def __init__(self,comp):
         self.robot=comp["_etc"]["robot"]
         self.robot_name=comp["_etc"]["name"]
         self.component=comp
-        broadcast_port=comp["_etc"]["broadcast_port"]
-        ethernets=get_ethernets()
-        if self.component["_etc"]["ethernet"] in ethernets:
-            self.component["_etc"]["ip"]=ethernets[self.component["_etc"]["ethernet"]]
-        else:
-            self.component["_etc"]["ethernet"]=list(ethernets)[0]
-            self.component["_etc"]["ip"]=list(ethernets.values())[0]
+        #broadcast_port=comp["_etc"]["BROADCAST_port"]
+        eth,ip=utils.set_eth_ip(self.component["_etc"]["ethernet"])
+        self.component["_etc"]["ip"]=ip
+        self.component["_etc"]["ethernet"]=eth
         #mqtt si hay topics
-        self.Get_MQTT()
+        #self.Get_MQTT()
 
         module,cls=self.component["_etc"]["cls"].split("::")
         mod = importlib.import_module(module)
@@ -56,8 +47,9 @@ class Comp_Starter(object):
             module,cls=interface.split("::")
             mod = importlib.import_module(module)
             self.component["_etc"]["_INTERFACES"].append(getattr(mod,cls))
-        #print(self.component)
-        
+        numports=len(self.component["_etc"]["_INTERFACES"])+1
+        port=self.component["_etc"]["port"]
+        self.component["_etc"]["port"]=utils.get_free_ports(ip,port,numports)
         
     def Get_MQTT(self):
         MQTT="{}:{}".format(self.component["_etc"]["ip"],
@@ -71,10 +63,6 @@ class Comp_Starter(object):
 
     def start(self):
         Start_Server(self.component)
-        time.sleep(0.3)
-
-    def run(self):
-        Run_Server(self.component)
-        #time.sleep(0.3)
+        time.sleep(0.1)
 
     

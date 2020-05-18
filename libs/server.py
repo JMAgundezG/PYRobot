@@ -23,9 +23,11 @@ def Loader_Config(clss, **kwargs):
 
     def init(self):
         for k, v in kwargs.items():
+            #print(k,"-->",v)
             setattr(self, k, v)
         super(clss, self).__init__()
-        original_init(self)
+        original_init(self) 
+        #super(clss, self).__init__()
     clss.__init__ = init
     return clss
 
@@ -41,83 +43,87 @@ def Start_Server(config):
     port=config["_etc"]["port"]
     name=config["_etc"]["name"]
     cls=config["_etc"]["cls"]
+    STATUS=""
     try:
         class_comp=Loader_Config(cls,**config)
         obj=class_comp()
         utils.change_process_name(name)
         obj._PROC["PID"]=os.getpid()
-        
-        if obj.hello()=="hi":
-            obj._PROC["status"]="INSTANCED"
-        else:
-            obj._PROC["status"]="ERROR"
-            exit()
+        STATUS=obj._PROC["status"]
+        del(config["_etc"]["cls"])
     except Exception as ex:
         P_Log("[FR][ERROR][FY] Instanced Component {}".format(name))
         P_Log(str(ex))
- 
+        STATUS="ERROR"
+    if STATUS=="ERROR":
+        exit()
+        
     # stablishing interface servers
     try:
-        obj._PROC["status"]="INTERFACING"
         interfaces.append(Control_Interface)
         for inter in interfaces:
             interface=Interface(inter,obj)
             warnings[obj._etc["name"]+"/"+interface.__name__]=interface.Not_Implemented
-            port=utils.get_free_port(port,host)
-            info.append((obj._etc["name"]+"/"+interface.__name__,"{}:{}".format(host,port)))
-            servers.append(StreamServer((host,port), interface()))
-            port=port+1
+            assing_port=port[0][0]
+            info.append((obj._etc["name"]+"/"+interface.__name__,"{}:{}".format(host,assing_port)))
+            port[0][1].close()
+            servers.append(StreamServer((host,assing_port), interface()))
+            del(port[0])
         obj._PROC["info"]=info
         obj._PROC["warnings"]=warnings
         obj._PROC["SERVER"]=servers[-1]
+        for s in servers:
+            s.start()
+        del(config["_etc"]["_INTERFACES"])
+        del(config["_etc"]["port"])
+        STATUS="INIT"
     except Exception as ex:
         P_Log("[FR][ERROR][FY] Creating interface Component {}".format(name))
         P_Log(str(ex))
+        STATUS="ERROR"
         exit()
+
     # Running __run__ method if exit
     method_list = [func for func in dir(obj) if callable(getattr(obj, func))]
-    #print("\n")
+    try:
+        obj.__post_init__()
+        STATUS=obj._PROC["status"]        
+    except Exception as ex:
+        P_Log("[FR][ERROR][FY] in initiator {}".format(name))
+        P_Log(str(ex))
+        STATUS="ERROR"   
+        
+    
+    if STATUS=="ERROR": 
+        obj.show_PROC()
+        for s in servers:
+            s.close()   
+        exit()
     if "__Run__" in method_list:
         try:
             obj.__Run__()
             obj._PROC["status"]="OK"
         except Exception as ex:
             obj.L_Def("\t[FR][ERROR][FY] in __Run__{}".format(ex))
+            STATUS="ERROR"
             raise
-            exit()
-    else:
-        obj._PROC["status"]="OK"
-    # wait requires for work and start server
-    try:
-        obj.show_PROC()
-        while obj._PROC["requires"] not in ["OK","FAIL"]:
-            time.sleep(0.2)
-        if obj._PROC["requires"]=="OK":
-            for s in servers[:-1]:
-                s.start()
-            obj._PROC["running"]="RUN"
-            #print("started",obj._etc["name"])
-            #print(obj.__dict__)
-            servers[-1].serve_forever()
-            P_Log("[FR][STOP][FY]  Signal Stop in Component {}".format(name))
-        else:
-            P_Log("[FR][ERROR][FY]  Requeriments incompleted {}".format(name))
-    except:
-        raise
+    if STATUS=="ERROR":
+        obj.show_PROC() 
         for s in servers:
-            s.close()
-        P_Log("[FR][STOP][FY]  Signal Stop in Component {}".format(name))
-        
-    finally:
+            s.close()   
+        exit()        
+    obj.show_PROC()
+    try:
+        servers[-1].serve_forever()
         try:
             obj.__Close__()
         except:
             pass
+        for s in servers:
+            s.close()    
+        #P_Log("[FR][STOP][FY]  Signal Stop in Component {}".format(name))
+    except:
+        P_Log("[FR][STOP][FY]  Signal Stop in Component {}".format(name))       
+        raise
 
 
-def Run_Server(config):
-    register= not config["_etc"]["sys"]
-    process = Process(target=Start_Server,args=(config))
-    process.daemon=True
-    process.start()
-    return process
