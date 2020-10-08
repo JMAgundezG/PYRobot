@@ -1,69 +1,103 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# ____________developed by paco andres____________________
-# ________in collaboration with cristian vazquez _________
-from PYRobot.botlogging.coloramadefs import *
-#import PYRobot.utils.utils as utils
 
-level_DEBUG = 40
-level_INFO = 30
-level_WARNING = 20
-level_ERROR = 10
-level_CRITICAL = 0
+"""
+____________
+Author: - Paco Andres
+Collaborators: - Cristian Vazquez
+               - Jose Manuel Agundez
+____________
+
+"""
+
+from PYRobot.botlogging.coloramadefs import *
+import enum
+
+
+class LogLevel(enum.Enum):
+    """
+    Level of logging.
+    It can be: DEBUG, INFO, WARNING, ERROR, CRITICAL
+    """
+
+    DEBUG = 40
+    INFO = 30
+    WARNING = 20
+    ERROR = 10
+    CRITICAL = 0
+
 
 class Logging(object):
-    def __init__(self,level=20):
-        self._etc["LOG_LEVEL"]=level
-        self._Log_cache=[]
+    """
+    Custom class that is used as a logger.
 
-    def Level_reconfigure(self,level=20):
-        self._etc["LOG_LEVEL"]=level
-        for men in self._Log_cache:
-            if men[0]==level_DEBUG:
-                self.L_debug(men[1]) 
-            if men[0]==level_WARNING:
-                self.L_warning(men[1])
-            if men[0]==level_INFO:
-                self.L_info(men[1])  
-        self._Log_cache=[]
+    """
 
-    def L_debug(self, men):
-        if self._etc["LOG_LEVEL"] >= level_DEBUG:
-            print(log_color("[[FG]Debug[SR]] <"+self._etc["name"]+">::"+str(men)))
+    def __init__(self, level: int = 20):
+        """
+        Constructor of the Logger class
+        Params:
+            - Level: [Int] (Default = 20) Level of the logger.
+        """
+        self._etc["LOG_LEVEL"] = level
+        self._log_cache = []
+
+    def level_reconfigure(self, level: int = 20):
+        """
+        Reconfiguration of the Logger object
+        Params:
+            - Level: [Int] (Default = 20) New level of the logger.
+        """
+
+        if level not in LogLevel:
+            self.l_warning("Level cannot be changed to {}".format(level))
         else:
-            self._Log_cache.append((level_DEBUG,men))
+            self._etc["LOG_LEVEL"] = level
+            for men in self._log_cache:
+                if men[0] == LogLevel.DEBUG:
+                    self.l_debug(men[1])
+                if men[0] == LogLevel.WARNING:
+                    self.l_warning(men[1])
+                if men[0] == LogLevel.INFO:
+                    self.l_info(men[1])
+            self._log_cache = []
 
-    def L_warning(self, men):
-        if self._etc["LOG_LEVEL"] >= level_WARNING:
-            print(log_color("[[FY]Warning[SR]] <"+self._etc["name"]+">::"+str(men)))
+    def l_debug(self, men):
+        if self._etc["LOG_LEVEL"] >= LogLevel.DEBUG:
+            print(log_color("[[FG]Debug[SR]] <" + self._etc["name"] + ">::" + str(men)))
         else:
-            self._Log_cache.append((level_WARNING,men))
+            self._log_cache.append((LogLevel.DEBUG, men))
 
-    def L_info(self, men):
-        if self._etc["LOG_LEVEL"] >= level_INFO:
-            print(log_color("[[FC]Info[SR]] <"+self._etc["name"]+">::"+str(men)))
+    def l_warning(self, men):
+        if self._etc["LOG_LEVEL"] >= LogLevel.WARNING:
+            print(log_color("[[FY]Warning[SR]] <" + self._etc["name"] + ">::" + str(men)))
         else:
-            self._Log_cache.append((level_INFO,men))
+            self._log_cache.append((LogLevel.WARNING, men))
 
-    def L_error(self, men):
-        if self._etc["LOG_LEVEL"] >= level_ERROR:
-            print(log_color("[[FR]ERROR[SR]] <"+self._etc["name"]+">::"+str(men)))
-            self._PROC["status"]="ERROR"
+    def l_info(self, men):
+        if self._etc["LOG_LEVEL"] >= LogLevel.INFO:
+            print(log_color("[[FC]Info[SR]] <" + self._etc["name"] + ">::" + str(men)))
+        else:
+            self._log_cache.append((LogLevel.INFO, men))
 
-    def L_critical(self, men):
-        if self._etc["LOG_LEVEL"] >= level_CRITICAL:
-            print(log_color("[[FR]CRITICAL[SR]]:<"+self._etc["name"]+"> "+str(men)))
-            self._PROC["status"]="ERROR"
+    def l_error(self, men):
+        if self._etc["LOG_LEVEL"] >= LogLevel.ERROR:
+            print(log_color("[[FR]ERROR[SR]] <" + self._etc["name"] + ">::" + str(men)))
+            self._PROC["status"] = "ERROR"
 
-    def L_print(self, men,handler=False):
+    def l_critical(self, men):
+        if self._etc["LOG_LEVEL"] >= LogLevel.CRITICAL:
+            print(log_color("[[FR]CRITICAL[SR]]:<" + self._etc["name"] + "> " + str(men)))
+            self._PROC["status"] = "ERROR"
+
+    def l_print(self, men, handler=False):
         if handler:
-            print(log_color("[FG]<"+self._etc["name"]+"> [SR]"+str(men)))
+            print(log_color("[FG]<" + self._etc["name"] + "> [SR]" + str(men)))
         else:
             print(log_color(str(men)))
 
-    def L_Def(self, men,handler=False):
+    def l_def(self, men, handler=False):
         if handler:
-
-            print(log_color("[FG]<"+self._etc["name"]+"> [SR]"+str(men)))
+            print(log_color("[FG]<" + self._etc["name"] + "> [SR]" + str(men)))
         else:
             print(log_color(str(men)))

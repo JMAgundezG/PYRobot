@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-# ____________developed by paco andres____________________
-# ________in collaboration with cristian vazquez _________
-from colorama import Cursor, init, Fore, Back, Style
+"""
+____________
+Author: - Paco Andres
+Collaborators: - Cristian Vazquez
+               - Jose Manuel Agundez
+____________
+
+"""
+from colorama import Cursor, Fore, Back, Style
 import re
 
-#init()
-STYLE = re.compile("\[[F,B,S][A-Z]\]")
+STYLE = re.compile("[[][FBS][A-Z][]]")
 print(Style.RESET_ALL)
 
 color = {"[FR]": Fore.RED,
@@ -53,31 +58,32 @@ def back(n):
     return Cursor.BACK(n)
 
 
-def log_color(mesaje):
-    colors = [s for s in STYLE.findall(mesaje) if s in color]
+def log_color(message):
+    colors = [s for s in STYLE.findall(message) if s in color]
     for s in colors:
-        mesaje = mesaje.replace(s, color[s])
-    return mesaje + Style.RESET_ALL
+        message = message.replace(s, color[s])
+    return message + Style.RESET_ALL
 
 
-def rawlog_color(mesaje):
-    colors = [s for s in STYLE.findall(mesaje) if s in color]
+def raw_log_color(message):
+    colors = [s for s in STYLE.findall(message) if s in color]
     for s in colors:
-        mesaje = mesaje.replace(s, "")
-    return mesaje
+        message = message.replace(s, "")
+    return message
 
-def P_Log(mesaje,ln=True):
+
+def p_log(message, ln=True):
     if ln:
-        print(log_color(mesaje)) 
+        print(log_color(message))
     else:
-        print(log_color(mesaje),end="") 
-    
-def C_Err(condition,mesage):
+        print(log_color(message), end="")
+
+
+def c_err(condition, message):
     try:
         assert not condition
-            
     except AssertionError:
-        P_Log("[FR][ERROR][FY] Critical: [FW]{}".format(mesage))
+        p_log("[FR][ERROR][FY] Critical: [FW]{}".format(message))
         exit()
-    except:
-        P_Log("[FR] Error not evaluable: {}".format(mesage))
+    except BaseException:
+        p_log("[FR] Error not evaluable: {}".format(message))

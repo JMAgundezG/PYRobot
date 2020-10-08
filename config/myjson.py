@@ -3,11 +3,12 @@
 
 import json
 import re
-import collections
 from PYRobot.botlogging.coloramadefs import P_Log
+
 
 class MyJson(object):
     def __init__(self, filename):
+        self.filename = None
         self.json = self.load_json(filename)
 
     def load_json(self, filename):
@@ -15,7 +16,7 @@ class MyJson(object):
                 ".json" in filename) else (filename + ".json")
         try:
             data = open(filename).read()
-            data = self.del_coments(data)
+            data = self.del_comments(data)
             data = self.substitute_params(data)
             data_json = json.loads(data)
         except ValueError as e:
@@ -26,7 +27,8 @@ class MyJson(object):
             exit()
         return data_json
 
-    def del_coments(self, data, ch="#"):
+    @staticmethod
+    def del_comments(data, ch="#"):
         salida = ""
         for line in data.splitlines():
             if line.find(ch) > -1:
@@ -40,7 +42,8 @@ class MyJson(object):
             data = data.replace(match, self.parameter_value(data, m))
         return data
 
-    def parameter_value(self, data, cad):
+    @staticmethod
+    def parameter_value(data, cad):
         posi = data.find(cad)
         if posi < 0:
             return cad
