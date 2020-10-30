@@ -5,7 +5,7 @@
 from PYRobot.libs.interfaces import Service
 
 
-class Control_Interface(Service):
+class ControlInterface(Service):
 
     def hello(self):
         pass
@@ -13,17 +13,17 @@ class Control_Interface(Service):
     def shutdown(self):
         pass
 
-    def get_PROC(self):
+    def get_proc(self):
         pass
     
-    def Get_INFO(self):
+    def get_info(self):
         pass
 
     def get_name(self):
         pass
 
-    def show_PROC(self,all=True):
+    def show_proc(self, all=True):
         pass
     
-    def Set_Logging(self,level=20):
+    def set_logging(self, level=20):
         pass

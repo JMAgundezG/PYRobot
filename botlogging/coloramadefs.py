@@ -38,23 +38,29 @@ color = {"[FR]": Fore.RED,
          }
 
 
-def pos(x, y):
+def pos(x: [int, float], y: [int, float]):
+    """
+        return Cursor.POS(x,y)
+        params:
+            - x
+            - y
+    """
     return Cursor.POS(x, y)
 
 
-def up(n):
+def up(n: [int, float]):
     return Cursor.UP(n)
 
 
-def down(n):
+def down(n: [int, float]):
     return Cursor.DOWN(n)
 
 
-def forward(n):
+def forward(n: [int, float]):
     return Cursor.FORDWARD(n)
 
 
-def back(n):
+def back(n: [int, float]):
     return Cursor.BACK(n)
 
 
@@ -73,6 +79,7 @@ def raw_log_color(message):
 
 
 def p_log(message, ln=True):
+
     if ln:
         print(log_color(message))
     else:

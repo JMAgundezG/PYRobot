@@ -8,44 +8,43 @@ import time
 from PYRobot.botlogging.coloramadefs import P_Log
 
 
-def_skel_old="""
-def {0}{1}:
-    try:
-        return self._link_.call('{0}'{2})
-    except Exception as ex:
-        P_Log("[[FR]ERROR[FW]] Running {0}{1} on Proxy {3}")
-        P_Log(str(ex))
-        return None
-"""
-
-def_skel="""
-def {0}{1}:
-    try:
-        return self._link_.call('{0}'{2})
-    except:
-        raise
-        return None
-"""
-
 class Proxy(object):
-    def __init__(self,uri, show=False):
-        self.showerr=show
+    def_skel_old = """
+    def {0}{1}:
         try:
-            self.host,self.port=uri.split(":")
-        except:
-            self.host="0.0.0.0"
-            self.port=0
+            return self._link_.call('{0}'{2})
+        except Exception as ex:
+            P_Log("[[FR]ERROR[FW]] Running {0}{1} on Proxy {3}")
+            P_Log(str(ex))
+            return None
+    """
 
-        self.OK=False
-        self.__linked=False
+    def_skel = """
+    def {0}{1}:
         try:
-            self._link_=RPCClient(self.host,int(self.port),timeout=10)
-            self.__linked=True
+            return self._link_.call('{0}'{2})
         except:
-            self.__linked=False
+            raise
+            return None
+    """
+
+    def __init__(self, uri, show=False):
+        self.showerr = show
+        try:
+            self.host, self.port = uri.split(":")
+        except:
+            self.host = "0.0.0.0"
+            self.port = 0
+
+        self.OK = False
+        self.__linked = False
+        try:
+            self._link_ = RPCClient(self.host, int(self.port), timeout=10)
+            self.__linked = True
+        except:
+            self.__linked = False
             if show:
                 P_Log("[FR]ERROR [FW] No Link to {}".format(uri))
-            
 
     def _close(self):
         if self._link_.is_connected():
@@ -54,13 +53,13 @@ class Proxy(object):
     def connect(self):
         try:
             if not self.OK:
-                self._link_=RPCClient(self.host,int(self.port),timeout=20)
+                self._link_ = RPCClient(self.host, int(self.port), timeout=20)
                 if self._link_.is_connected():
-                    self.OK=self.__create_hooks()
+                    self.OK = self.__create_hooks()
                 else:
-                    self.OK=False
+                    self.OK = False
         except:
-            self.OK=False
+            self.OK = False
             if self.showerr:
                 P_Log("[FR]ERROR [FW] No Connect to {}".format(uri))
         finally:
@@ -79,37 +78,37 @@ class Proxy(object):
 
     def __create_hooks(self):
         try:
-            _config=self._link_.call('G_E_T_Configuration')
+            _config = self._link_.call('G_E_T_Configuration')
         except:
-            _config={}
-            #print("error creating hooks {}:{}".format(self.host,self.port))
-        hooks=[]
-        for defs,params in _config.items():
-            params_def=params[0]
-            params_call=""
+            _config = {}
+            # print("error creating hooks {}:{}".format(self.host,self.port))
+        hooks = []
+        for defs, params in _config.items():
+            params_def = params[0]
+            params_call = ""
             for x in params[1]:
-                params_call=params_call+","+str(x)
-            d=def_skel.format(defs,params_def,params_call,self.host+":"+str(self.port))
-            #print(d)
-            hooks.append((defs,d))
-        for defs,fun in hooks:
-            #print(defs,fun)
+                params_call = params_call + "," + str(x)
+            d = Proxy.def_skel.format(defs, params_def, params_call, self.host + ":" + str(self.port))
+            # print(d)
+            hooks.append((defs, d))
+        for defs, fun in hooks:
+            # print(defs,fun)
             exec(fun)
             self.__dict__[defs] = types.MethodType(eval(defs), self)
-        self.functions=hooks
-        return len(self.functions)>0
+        self.functions = hooks
+        return len(self.functions) > 0
 
     def get_uri(self):
         return "{}:{}".format(self.host, self.port)
 
     def get_functions(self):
-        return [a for a,b in self.functions]
+        return [a for a, b in self.functions]
 
-    def call(self,fn,*args):
+    def call(self, fn, *args):
         try:
-            return self._link_.call(fn,*args)
+            return self._link_.call(fn, *args)
         except Exception as ex:
-            #raise
+            # raise
             P_Log("[[FR]ERROR[FW]] Running call on Proxy {}".format(self.get_uri()))
             P_Log(str(ex))
             return None
